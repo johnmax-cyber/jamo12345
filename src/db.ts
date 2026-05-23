@@ -1,316 +1,208 @@
-import { 
-  collection, 
-  getDocs, 
-  setDoc, 
-  doc, 
-  deleteDoc, 
-  updateDoc,
-  getDocFromServer
-} from "firebase/firestore";
-import { db, auth, handleFirestoreError, OperationType } from "./firebase";
+import { supabase } from "./supabase";
 import { Product, ContactMessage, Order } from "./types";
-import { INITIAL_PRODUCTS, INITIAL_MESSAGES, INITIAL_ORDERS } from "./data";
-import {
-  queryProductsFromSupabase,
-  syncProductToSupabase,
-  deleteProductFromSupabase,
-  queryMessagesFromSupabase,
-  syncMessageToSupabase,
-  updateMessageReadStatusInSupabase,
-  deleteMessageFromSupabase,
-  queryOrdersFromSupabase,
-  syncOrderToSupabase,
-  updateOrderStatusInSupabase,
-  testSupabaseConnection
-} from "./supabase";
 
 // 1. Connection check on startup
-export async function testFirestoreConnection() {
-  const testPath = "test/connection";
+export async function testConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, "test", "connection"));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.error("Please check your Firebase configuration: client is offline.");
+    const { error } = await supabase.from("products").select("count").limit(1);
+    if (error) {
+      console.warn("Could not reach Supabase for connection check:", error);
+      return false;
     }
-  }
-  
-  // Also check Supabase
-  try {
-    const isSupaUp = await testSupabaseConnection();
-    console.log("Supabase system validation checks:", isSupaUp ? "ON" : "OFF");
-  } catch (e) {
-    console.warn("Supabase ping failure:", e);
+    return true;
+  } catch (err) {
+    console.error("Supabase unreachable:", err);
+    return false;
   }
 }
 
 // 2. Fetch Products
 export async function queryProducts(): Promise<Product[]> {
-  // First try Supabase as requested
-  try {
-    const supabaseProducts = await queryProductsFromSupabase();
-    if (supabaseProducts && supabaseProducts.length > 0) {
-      console.log("Using primary database (Supabase) for Products catalog.");
-      return supabaseProducts;
-    }
-  } catch (err) {
-    console.warn("Could not query Products from Supabase (tables may not be created yet). Falling back to Firestore:", err);
+  const { data, error } = await supabase.from("products").select("*");
+  if (error) {
+    console.error("Error fetching products from Supabase:", error);
+    throw error;
   }
-
-  // Fallback to Firestore
-  const collectionName = "products";
-  try {
-    const querySnapshot = await getDocs(collection(db, collectionName));
-    const items: Product[] = [];
-    querySnapshot.forEach((docSnap) => {
-      items.push(docSnap.data() as Product);
-    });
-
-    // Bootstrap if completely empty in Firestore
-    if (items.length === 0) {
-      console.log("Products DB empty. Bootstrapping default items...");
-      for (const p of INITIAL_PRODUCTS) {
-        await setDoc(doc(db, collectionName, p.id), p);
-        items.push(p);
-        
-        // Also seed Supabase in background if connected
-        syncProductToSupabase(p).catch(e => console.warn("Background auto-sync default product to Supabase failed:", e));
-      }
-    }
-    return items;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, collectionName);
-    return INITIAL_PRODUCTS;
-  }
+  return (data || []).map((p: any) => ({
+    id: String(p.id),
+    name: p.name || "",
+    description: p.description || "",
+    price: Number(p.price || 0),
+    category: p.category as "clothes" | "books",
+    image: p.image || undefined,
+    isNew: p.is_new ?? false,
+    onSale: p.on_sale ?? (p.discount_price ? true : false),
+    originalPrice: p.original_price ? Number(p.original_price) : (p.discount_price ? Number(p.price) : undefined),
+  }));
 }
 
 // 3. Save Product
 export async function createProduct(product: Product): Promise<void> {
-  // 1. Save to Supabase
-  try {
-    const res = await syncProductToSupabase(product);
-    if (!res.success) {
-      console.warn("Supabase writing notification:", res.error);
+  let numericId: number | undefined = undefined;
+  if (product.id) {
+    const digits = product.id.replace(/\D/g, "");
+    if (digits) {
+      numericId = parseInt(digits, 10);
     }
-  } catch (err) {
-    console.error("Failed writing product to Supabase:", err);
+  }
+  if (!numericId || isNaN(numericId)) {
+    numericId = Math.floor(Math.random() * 100000);
   }
 
-  // 2. Save to Firestore
-  const collectionName = "products";
-  try {
-    await setDoc(doc(db, collectionName, product.id), product);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${collectionName}/${product.id}`);
+  const { error } = await supabase.from("products").upsert({
+    id: numericId,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    discount_price: product.originalPrice ? product.price : null,
+    category: product.category,
+    in_stock: true,
+    whatsapp_message: `Hello Susan's Company, I am interested in ${product.name}`
+  });
+  if (error) {
+    console.error("Error creating product in Supabase:", error);
+    throw error;
   }
 }
 
 // 4. Delete Product
-export async function removeProduct(productId: string): Promise<void> {
-  // 1. Delete from Supabase
-  try {
-    await deleteProductFromSupabase(productId);
-  } catch (err) {
-    console.error("Failed to delete product from Supabase:", err);
+export async function removeProduct(id: string): Promise<void> {
+  const digits = id.replace(/\D/g, "");
+  const numericId = digits ? parseInt(digits, 10) : null;
+  if (numericId === null || isNaN(numericId)) {
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) throw error;
+    return;
   }
-
-  // 2. Delete from Firestore
-  const collectionName = "products";
-  try {
-    await deleteDoc(doc(db, collectionName, productId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${productId}`);
-  }
+  const { error } = await supabase.from("products").delete().eq("id", numericId);
+  if (error) throw error;
 }
 
-// 5. Fetch Messages
-export async function queryMessages(): Promise<ContactMessage[]> {
-  // First try Supabase
-  try {
-    const supabaseMsgs = await queryMessagesFromSupabase();
-    if (supabaseMsgs && supabaseMsgs.length > 0) {
-      console.log("Using primary database (Supabase) for Contact messages.");
-      return supabaseMsgs;
-    }
-  } catch (err) {
-    console.warn("Could not query Messages from Supabase. Falling back to Firestore:", err);
-  }
-
-  // Fallback to Firestore (ONLY if user is authenticated/admin to avoid permission errors)
-  const currentUser = auth.currentUser;
-  const isUserAdmin = currentUser && (
-    currentUser.email === "johnmax4354@gmail.com" ||
-    currentUser.email === "staff@susanscompany.com"
-  );
-
-  if (!isUserAdmin) {
-    console.log("User is not authenticated as admin in Firebase. Skipping Firestore messages query and returning fallback list.");
-    return INITIAL_MESSAGES;
-  }
-
-  const collectionName = "messages";
-  try {
-    const querySnapshot = await getDocs(collection(db, collectionName));
-    const messages: ContactMessage[] = [];
-    querySnapshot.forEach((docSnap) => {
-      messages.push(docSnap.data() as ContactMessage);
-    });
-
-    // Bootstrap if empty
-    if (messages.length === 0) {
-      for (const m of INITIAL_MESSAGES) {
-        await setDoc(doc(db, collectionName, m.id), m);
-        messages.push(m);
-        
-        // Background sync to Supabase
-        syncMessageToSupabase(m).catch(e => console.warn("Background auto-sync default message to Supabase failed:", e));
-      }
-    }
-    return messages;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, collectionName);
-    return INITIAL_MESSAGES;
-  }
-}
-
-// 6. Save Message
-export async function submitContactMessage(msg: ContactMessage): Promise<void> {
-  // 1. Save to Supabase
-  try {
-    await syncMessageToSupabase(msg);
-  } catch (err) {
-    console.error("Failed writing message to Supabase:", err);
-  }
-
-  // 2. Save to Firestore
-  const collectionName = "messages";
-  try {
-    await setDoc(doc(db, collectionName, msg.id), msg);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${collectionName}/${msg.id}`);
-  }
-}
-
-// 7. Update Message status
-export async function markMessageReadStatus(messageId: string, isRead: boolean): Promise<void> {
-  // 1. Update Supabase
-  try {
-    await updateMessageReadStatusInSupabase(messageId, isRead);
-  } catch (err) {
-    console.error("Failed to update message read status in Supabase:", err);
-  }
-
-  // 2. Update Firestore
-  const collectionName = "messages";
-  try {
-    const docRef = doc(db, collectionName, messageId);
-    await updateDoc(docRef, { isRead });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${messageId}`);
-  }
-}
-
-// 8. Delete Message
-export async function purgeMessage(messageId: string): Promise<void> {
-  // 1. Delete from Supabase
-  try {
-    await deleteMessageFromSupabase(messageId);
-  } catch (err) {
-    console.error("Failed to delete message from Supabase:", err);
-  }
-
-  // 2. Delete from Firestore
-  const collectionName = "messages";
-  try {
-    await deleteDoc(doc(db, collectionName, messageId));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${messageId}`);
-  }
-}
-
-// 9. Fetch Orders
+// 5. Fetch Orders
 export async function queryOrders(): Promise<Order[]> {
-  // First try Supabase
-  try {
-    const supabaseOrders = await queryOrdersFromSupabase();
-    if (supabaseOrders && supabaseOrders.length > 0) {
-      console.log("Using primary database (Supabase) for Customer orders.");
-      return supabaseOrders;
-    }
-  } catch (err) {
-    console.warn("Could not query Orders from Supabase. Falling back to Firestore:", err);
+  const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+  if (error) {
+    console.error("Error querying orders:", error);
+    throw error;
   }
-
-  // Fallback to Firestore (ONLY if user is authenticated/admin to avoid permission errors)
-  const currentUser = auth.currentUser;
-  const isUserAdmin = currentUser && (
-    currentUser.email === "johnmax4354@gmail.com" ||
-    currentUser.email === "staff@susanscompany.com"
-  );
-
-  if (!isUserAdmin) {
-    console.log("User is not authenticated as admin in Firebase. Skipping Firestore orders query and returning fallback list.");
-    return INITIAL_ORDERS;
-  }
-
-  const collectionName = "orders";
-  try {
-    const querySnapshot = await getDocs(collection(db, collectionName));
-    const orders: Order[] = [];
-    querySnapshot.forEach((docSnap) => {
-      orders.push(docSnap.data() as Order);
-    });
-
-    // Bootstrap if empty
-    if (orders.length === 0) {
-      for (const ord of INITIAL_ORDERS) {
-        await setDoc(doc(db, collectionName, ord.id), ord);
-        orders.push(ord);
-        
-        // Background sync to Supabase
-        syncOrderToSupabase(ord).catch(e => console.warn("Background auto-sync default order to Supabase failed:", e));
+  return (data || []).map((o: any) => ({
+    id: String(o.id),
+    customerName: o.customer_name || "Guest Check",
+    customerPhone: o.customer_phone || "",
+    totalAmount: Number(o.total_amount || 0),
+    status: o.status as "pending" | "completed" | "cancelled",
+    deliveryLocation: o.delivery_location || "Nairobi",
+    paymentMethod: o.payment_method || "M-Pesa",
+    date: o.created_at ? new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString(),
+    items: [
+      {
+        product: {
+          id: String(o.product_id || "1"),
+          name: o.product_name || "Modest Fashion Item",
+          price: Number(o.total_amount || 0),
+          category: "clothes",
+          description: "Curated modest styling.",
+        },
+        quantity: 1,
       }
-    }
-    return orders;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, collectionName);
-    return INITIAL_ORDERS;
-  }
+    ]
+  }));
 }
 
-// 10. Save Order
+// 6. Save Order
 export async function createOrder(order: Order): Promise<void> {
-  // 1. Save to Supabase
-  try {
-    await syncOrderToSupabase(order);
-  } catch (err) {
-    console.error("Failed writing order to Supabase:", err);
+  const orderIdNum = parseInt(order.id.replace(/\D/g, "")) || Math.floor(1000 + Math.random() * 9000);
+  const firstItem = order.items && order.items.length > 0 ? order.items[0] : null;
+  let pId = 1;
+  if (firstItem) {
+    pId = parseInt(firstItem.product.id.replace(/\D/g, "")) || 1;
   }
+  const pName = firstItem ? firstItem.product.name : "Modest Item";
 
-  // 2. Save to Firestore
-  const collectionName = "orders";
-  try {
-    await setDoc(doc(db, collectionName, order.id), order);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${collectionName}/${order.id}`);
+  const { error } = await supabase.from("orders").insert({
+    id: orderIdNum,
+    product_id: pId,
+    product_name: pName,
+    customer_name: order.customerName,
+    customer_phone: order.customerPhone,
+    delivery_location: order.deliveryLocation,
+    payment_method: order.paymentMethod,
+    total_amount: order.totalAmount,
+    status: order.status,
+  });
+  if (error) {
+    console.error("Error creating order in Supabase:", error);
+    throw error;
   }
 }
 
-// 11. Complete / Cancel Order Status
-export async function updateOrderStatus(orderId: string, status: "pending" | "completed" | "cancelled"): Promise<void> {
-  // 1. Update Supabase
-  try {
-    await updateOrderStatusInSupabase(orderId, status);
-  } catch (err) {
-    console.error("Failed to update status in Supabase:", err);
+// 7. Complete / Cancel Order Status
+export async function updateOrderStatus(id: string, status: "pending" | "completed" | "cancelled"): Promise<void> {
+  const digits = id.replace(/\D/g, "");
+  const numericId = digits ? parseInt(digits, 10) : null;
+  const targetId = (numericId !== null && !isNaN(numericId)) ? numericId : id;
+  const { error } = await supabase.from("orders").update({ status }).eq("id", targetId);
+  if (error) {
+    console.error("Error updating order status in Supabase:", error);
+    throw error;
   }
+}
 
-  // 2. Update Firestore
-  const collectionName = "orders";
-  try {
-    const docRef = doc(db, collectionName, orderId);
-    await updateDoc(docRef, { status });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${orderId}`);
+// 8. Fetch Messages
+export async function queryMessages(): Promise<ContactMessage[]> {
+  const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false });
+  if (error) {
+    console.error("Error querying messages:", error);
+    throw error;
+  }
+  return (data || []).map((m: any) => ({
+    id: String(m.id),
+    name: m.name || "",
+    phone: m.phone || "",
+    interest: m.interest || "",
+    message: m.message || "",
+    date: m.created_at ? new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString(),
+    isRead: m.is_read ?? false,
+  }));
+}
+
+// 9. Save Message
+export async function submitContactMessage(msg: ContactMessage): Promise<void> {
+  const numericId = parseInt(msg.id.replace(/\D/g, "")) || Math.floor(Math.random() * 100000);
+  const { error } = await supabase.from("messages").insert({
+    id: numericId,
+    name: msg.name,
+    phone: msg.phone,
+    interest: msg.interest,
+    message: msg.message,
+    is_read: msg.isRead,
+  });
+  if (error) {
+    console.error("Error inserting message inside Supabase:", error);
+    throw error;
+  }
+}
+
+// 10. Update Message status
+export async function markMessageReadStatus(id: string, isRead: boolean): Promise<void> {
+  const digits = id.replace(/\D/g, "");
+  const numericId = digits ? parseInt(digits, 10) : null;
+  const targetId = (numericId !== null && !isNaN(numericId)) ? numericId : id;
+  const { error } = await supabase.from("messages").update({ is_read: isRead }).eq("id", targetId);
+  if (error) {
+    console.error("Error updating message read status:", error);
+    throw error;
+  }
+}
+
+// 11. Delete Message
+export async function purgeMessage(id: string): Promise<void> {
+  const digits = id.replace(/\D/g, "");
+  const numericId = digits ? parseInt(digits, 10) : null;
+  const targetId = (numericId !== null && !isNaN(numericId)) ? numericId : id;
+  const { error } = await supabase.from("messages").delete().eq("id", targetId);
+  if (error) {
+    console.error("Error deleting message from Supabase:", error);
+    throw error;
   }
 }

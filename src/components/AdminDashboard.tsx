@@ -5,9 +5,8 @@ import {
   Trash2, Plus, X, Menu, ShoppingBag, MessageSquare, AlertTriangle, 
   CheckCircle, Shirt as ProductIcon, Inbox, CreditCard, ChevronRight, Phone, MapPin, DollarSign,
   Cloud, Calendar as CalendarIcon, Send, ShieldCheck, RefreshCw, FileText, Check, AlertCircle, Sparkles, Database,
-  ArrowUpDown
+  ArrowUpDown, Pencil
 } from "lucide-react";
-import { User } from "firebase/auth";
 import { Product, ContactMessage, Order, ScreenType } from "../types";
 import { 
   uploadFileToDrive, 
@@ -40,8 +39,8 @@ interface AdminDashboardProps {
   setMessages: React.Dispatch<React.SetStateAction<ContactMessage[]>>;
   orders: Order[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
-  googleUser: User | null;
-  googleToken: string | null;
+  googleUser: any | null;
+  googleToken?: any | null;
   onGoogleLogin: () => Promise<void>;
   onGoogleLogout: () => Promise<void>;
 }
@@ -72,6 +71,14 @@ export default function AdminDashboard({
   const [newProductCategory, setNewProductCategory] = useState<"clothes" | "books">("clothes");
   const [newProductImage, setNewProductImage] = useState("");
   const [productError, setProductError] = useState("");
+
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editProductTitle, setEditProductTitle] = useState("");
+  const [editProductDescription, setEditProductDescription] = useState("");
+  const [editProductPrice, setEditProductPrice] = useState("");
+  const [editProductCategory, setEditProductCategory] = useState<"clothes" | "books">("clothes");
+  const [editProductImage, setEditProductImage] = useState("");
+  const [editProductError, setEditProductError] = useState("");
 
   // Google Calendar Integration states
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
@@ -297,7 +304,7 @@ export default function AdminDashboard({
     removeProduct(id).then(() => {
       setProducts(products.filter(p => p.id !== id));
     }).catch(err => {
-      console.error("Firestore product deletion failure:", err);
+      console.error("Database product deletion failure:", err);
     });
   };
 
@@ -306,7 +313,7 @@ export default function AdminDashboard({
     purgeMessage(id).then(() => {
       setMessages(messages.filter(m => m.id !== id));
     }).catch(err => {
-      console.error("Firestore message purge error:", err);
+      console.error("Database message purge error:", err);
     });
   };
 
@@ -315,7 +322,7 @@ export default function AdminDashboard({
     markMessageReadStatus(id, true).then(() => {
       setMessages(messages.map(m => m.id === id ? { ...m, isRead: true } : m));
     }).catch(err => {
-      console.error("Firestore update read status error:", err);
+      console.error("Database update read status error:", err);
     });
   };
 
@@ -324,7 +331,7 @@ export default function AdminDashboard({
     updateOrderStatus(id, "completed").then(() => {
       setOrders(orders.map(o => o.id === id ? { ...o, status: "completed" } : o));
     }).catch(err => {
-      console.error("Firestore complete order error:", err);
+      console.error("Database complete order error:", err);
     });
   };
 
@@ -333,7 +340,7 @@ export default function AdminDashboard({
     updateOrderStatus(id, "cancelled").then(() => {
       setOrders(orders.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
     }).catch(err => {
-      console.error("Firestore cancel order error:", err);
+      console.error("Database cancel order error:", err);
     });
   };
 
@@ -377,9 +384,45 @@ export default function AdminDashboard({
       setNewProductPrice("");
       setNewProductImage("");
     }).catch(err => {
-      console.error("Firestore write product issue:", err);
-      setProductError("Exception inserting product. Access Denied by Firebase rules.");
+      console.error("Database write product issue:", err);
+      setProductError("Exception inserting product. Access Denied by database RLS rules.");
     });
+  };
+
+  const handleOpenEdit = (product: Product) => {
+    setEditingProduct(product);
+    setEditProductTitle(product.name);
+    setEditProductDescription(product.description || "");
+    setEditProductPrice(String(product.price));
+    setEditProductCategory(product.category);
+    setEditProductImage(product.image || "");
+    setEditProductError("");
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setEditProductError("");
+    const priceNum = parseFloat(editProductPrice);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setEditProductError("Please enter a valid price.");
+      return;
+    }
+    const updated: Product = {
+      ...editingProduct,
+      name: editProductTitle.trim(),
+      description: editProductDescription.trim(),
+      price: priceNum,
+      category: editProductCategory,
+      image: editProductImage.trim() || editingProduct.image,
+    };
+    try {
+      await createProduct(updated); // createProduct uses upsert so it will update
+      setProducts(products.map(p => p.id === updated.id ? updated : p));
+      setEditingProduct(null);
+    } catch (err: any) {
+      setEditProductError(err.message || "Failed to update product.");
+    }
   };
 
   // Google Calendar booking action
@@ -935,6 +978,121 @@ export default function AdminDashboard({
                 )}
               </AnimatePresence>
 
+              {/* Edit Custom Product Modal Popup */}
+              <AnimatePresence>
+                {editingProduct && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.6 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setEditingProduct(null)}
+                      className="absolute inset-0 bg-black"
+                    />
+                    
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.95, opacity: 0 }}
+                      className="bg-white rounded-2xl w-full max-w-lg p-6 md:p-8 relative z-10 shadow-xl border border-outline-variant"
+                    >
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-serif text-xl font-bold text-primary">Edit Product</h3>
+                        <button onClick={() => setEditingProduct(null)} className="text-on-surface-variant hover:text-primary">
+                          <X className="w-5 h-5 pointer-events-auto" />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSaveEdit} className="space-y-4">
+                        {editProductError && (
+                          <div className="flex items-center gap-2 bg-error/5 p-3 rounded-lg text-xs font-semibold text-error border border-error/20">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>{editProductError}</span>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-xs font-semibold font-sans uppercase tracking-wide text-on-surface-variant mb-1">
+                            Product Title
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Amber Brocade Kaftan"
+                            value={editProductTitle}
+                            onChange={(e) => setEditProductTitle(e.target.value)}
+                            className="w-full border border-outline-variant rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-transparent text-on-surface"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold font-sans uppercase tracking-wide text-on-surface-variant mb-1">
+                              Price (KSh)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="e.g. 9500"
+                              value={editProductPrice}
+                              onChange={(e) => setEditProductPrice(e.target.value)}
+                              className="w-full border border-outline-variant rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-transparent text-on-surface"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold font-sans uppercase tracking-wide text-on-surface-variant mb-1">
+                              Category
+                            </label>
+                            <select
+                              value={editProductCategory}
+                              onChange={(e) => setEditProductCategory(e.target.value as "clothes" | "books")}
+                              className="w-full border border-outline-variant rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-transparent text-on-surface cursor-pointer"
+                            >
+                              <option value="clothes">衣服 Clothes</option>
+                              <option value="books">书籍 Books</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold font-sans uppercase tracking-wide text-on-surface-variant mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={3}
+                            placeholder="Describe fabrics, fittings, or book chapters..."
+                            value={editProductDescription}
+                            onChange={(e) => setEditProductDescription(e.target.value)}
+                            className="w-full border border-outline-variant rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-transparent text-on-surface resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold font-sans uppercase tracking-wide text-on-surface-variant mb-1">
+                            Cover Image / Photography URL
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Leave blank to auto-pin beautiful default"
+                            value={editProductImage}
+                            onChange={(e) => setEditProductImage(e.target.value)}
+                            className="w-full border border-outline-variant rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-transparent text-on-surface"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full bg-primary text-white font-sans text-xs uppercase tracking-widest font-bold py-3.5 rounded-full hover:bg-primary-container hover:text-on-primary-container transition-all cursor-pointer active:scale-98 mt-4"
+                        >
+                          Save Changes
+                        </button>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
               {/* Products Catalog Table Grid */}
               <div className="bg-white rounded-2xl border border-surface-container-high shadow-xs overflow-hidden">
                 <div className="overflow-x-auto w-full">
@@ -966,6 +1124,13 @@ export default function AdminDashboard({
                             KSh {p.price.toLocaleString()}
                           </td>
                           <td className="py-4 px-6 text-right">
+                            <button
+                              onClick={() => handleOpenEdit(p)}
+                              className="p-2 text-primary/60 hover:text-primary hover:bg-primary/5 rounded-full transition-all cursor-pointer inline-flex"
+                              title="Edit Product"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => handleDeleteProduct(p.id)}
                               className="p-2 text-error/65 hover:text-error hover:bg-error/5 rounded-full transition-all cursor-pointer inline-flex"

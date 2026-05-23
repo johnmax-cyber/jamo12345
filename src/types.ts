@@ -37,4 +37,4 @@ export interface Order {
   date: string;
 }
 
-export type ScreenType = "home" | "shop" | "contact" | "admin-login" | "admin-dashboard";
+export type ScreenType = "home" | "shop" | "contact" | "admin-login" | "admin-dashboard" | "privacy" | "terms";

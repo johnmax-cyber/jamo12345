@@ -197,8 +197,8 @@ export default function ShopView({ products, onAddToCart }: ShopViewProps) {
                       className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a4a2e] to-[#2d6a4f] text-white p-6 text-center select-none">
-                      <span className="font-serif font-bold text-lg tracking-wide drop-shadow-sm">{product.name}</span>
+                    <div className="w-full flex items-center justify-center text-white p-6 text-center select-none font-serif font-bold text-lg tracking-wide" style={{ backgroundColor: "#1a4a2e", height: "200px", borderRadius: "12px" }}>
+                      <span>{product.name}</span>
                     </div>
                   )}
                   

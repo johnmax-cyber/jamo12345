@@ -126,8 +126,8 @@ export default function HomeView({ setScreen, products, onAddToCart }: HomeViewP
                       src={product.image}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a4a2e] to-[#2d6a4f] text-white p-6 text-center select-none">
-                      <span className="font-serif font-bold text-base md:text-lg tracking-wide drop-shadow-sm">{product.name}</span>
+                    <div className="w-full flex items-center justify-center text-white p-6 text-center select-none font-serif font-bold text-base md:text-lg tracking-wide" style={{ backgroundColor: "#1a4a2e", height: "200px", borderRadius: "12px" }}>
+                      <span>{product.name}</span>
                     </div>
                   )}
                   {product.isNew && (
@@ -211,8 +211,8 @@ export default function HomeView({ setScreen, products, onAddToCart }: HomeViewP
           <button onClick={() => setScreen("home")} className="hover:text-secondary-fixed transition-colors pointer-events-auto cursor-pointer">Home</button>
           <button onClick={() => setScreen("shop")} className="hover:text-secondary-fixed transition-colors pointer-events-auto cursor-pointer">Shop</button>
           <button onClick={() => setScreen("contact")} className="hover:text-secondary-fixed transition-colors pointer-events-auto cursor-pointer">Contact</button>
-          <a href="#" className="hover:text-secondary-fixed transition-colors pointer-events-auto">Privacy Policy</a>
-          <a href="#" className="hover:text-secondary-fixed transition-colors pointer-events-auto">Terms of Service</a>
+          <button onClick={() => setScreen("privacy")} className="hover:text-secondary-fixed transition-colors pointer-events-auto cursor-pointer">Privacy Policy</button>
+          <button onClick={() => setScreen("terms")} className="hover:text-secondary-fixed transition-colors pointer-events-auto cursor-pointer font-serif">Terms &amp; Conditions</button>
         </div>
         <div className="border-t border-white/10 w-full max-w-md pt-8">
           <p className="font-sans text-xs text-surface-container-high/70">

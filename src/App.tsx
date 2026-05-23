@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MessageSquare, ShieldAlert } from "lucide-react";
-import { User } from "firebase/auth";
 
 // Components
 import Header from "./components/Header";
@@ -12,18 +11,20 @@ import ContactView from "./components/ContactView";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./components/AdminDashboard";
 import CartModal from "./components/CartModal";
+import PrivacyPolicy from "./components/PrivacyPolicy";
+import TermsAndConditions from "./components/TermsAndConditions";
 
 // Initial Mock Data and Types
 import { Product, CartItem, ContactMessage, Order, ScreenType } from "./types";
 import { INITIAL_PRODUCTS, INITIAL_MESSAGES, INITIAL_ORDERS } from "./data";
 import { 
-  initAuth, 
-  googleSignIn, 
-  logout, 
-  getAccessToken 
-} from "./firebase";
+  signInWithEmail, 
+  signOut, 
+  getSession, 
+  onAuthStateChange 
+} from "./auth";
 import { 
-  testFirestoreConnection, 
+  testConnection, 
   queryProducts, 
   queryMessages, 
   queryOrders, 
@@ -48,8 +49,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Google Workspace Authorized login credentials
-  const [googleUser, setGoogleUser] = useState<User | null>(null);
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleUser, setGoogleUser] = useState<any | null>(null);
 
   // Log notifications inside the UI when active changes occur
   const [toastMessage, setToastMessage] = useState("");
@@ -63,7 +63,7 @@ export default function App() {
 
   // Synchronize with database on initialization
   useEffect(() => {
-    testFirestoreConnection();
+    testConnection();
 
     // Load actual DB streams
     const bootstrapCatalog = async () => {
@@ -93,15 +93,14 @@ export default function App() {
     };
     bootstrapCatalog();
 
-    // Bind Google Auth triggers
-    const unsub = initAuth(
-      (user, token) => {
-        setGoogleUser(user);
-        setGoogleToken(token);
-      },
-      () => {
-        setGoogleUser(null);
-        setGoogleToken(null);
+    // Bind Google Auth triggers using Supabase
+    const unsub = onAuthStateChange(
+      (session) => {
+        if (session && session.user) {
+          setGoogleUser(session.user);
+        } else {
+          setGoogleUser(null);
+        }
       }
     );
 
@@ -110,6 +109,16 @@ export default function App() {
 
   // Re-fetch messages and orders dynamically when authentication shifts or admin dashboard is opened
   useEffect(() => {
+    if (googleUser && googleUser.email === "johnmax4354@gmail.com") {
+      if (currentScreen === "admin-login") {
+        setScreen("admin-dashboard");
+      }
+    } else {
+      if (currentScreen === "admin-dashboard") {
+        setScreen("home");
+      }
+    }
+
     const reloadAdminResources = async () => {
       try {
         const msgData = await queryMessages();
@@ -129,25 +138,10 @@ export default function App() {
   }, [googleUser, currentScreen]);
 
   // Sync token asynchronously if available
-  const handleGoogleLogin = async () => {
-    try {
-      const result = await googleSignIn();
-      if (result) {
-        setGoogleUser(result.user);
-        setGoogleToken(result.accessToken);
-        showToast(`Connected successfully to Google Workspace as ${result.user.email}!`);
-      }
-    } catch (err: any) {
-      console.error("OAuth login failure:", err);
-      showToast(`Workspace Connection Failed: ${err.message || err}`);
-    }
-  };
-
   const handleGoogleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       setGoogleUser(null);
-      setGoogleToken(null);
       showToast("Cleared Google Workspace credentials.");
     } catch (err) {
       console.error("Error signing out:", err);
@@ -251,6 +245,7 @@ export default function App() {
             {currentScreen === "contact" && (
               <ContactView
                 onAddMessage={handleAddMessage}
+                setScreen={setScreen}
               />
             )}
 
@@ -270,12 +265,41 @@ export default function App() {
                 orders={orders}
                 setOrders={setOrders}
                 googleUser={googleUser}
-                googleToken={googleToken}
-                onGoogleLogin={handleGoogleLogin}
+                googleToken={null}
+                onGoogleLogin={async () => {}}
                 onGoogleLogout={handleGoogleLogout}
               />
             )}
+
+            {currentScreen === "privacy" && (
+              <PrivacyPolicy setScreen={setScreen} />
+            )}
+
+            {currentScreen === "terms" && (
+              <TermsAndConditions setScreen={setScreen} />
+            )}
           </AnimatePresence>
+
+          {/* Global Centered Legal Footer for Public Sub-pages */}
+          {currentScreen !== "admin-dashboard" && currentScreen !== "admin-login" && currentScreen !== "home" && (
+            <footer className="mt-16 pt-8 border-t border-gray-150 text-center">
+              <div className="flex justify-center gap-3 text-gray-400 font-sans tracking-wide" style={{ fontSize: "11px" }}>
+                <button
+                  onClick={() => setScreen("privacy")}
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
+                  Privacy Policy
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => setScreen("terms")}
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
+                  Terms &amp; Conditions
+                </button>
+              </div>
+            </footer>
+          )}
         </div>
       </main>
 

@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Phone, MapPin, Clock, MessageSquare, CheckCircle, AlertCircle, Send } from "lucide-react";
-import { ContactMessage } from "../types";
+import { ContactMessage, ScreenType } from "../types";
 
 interface ContactViewProps {
   onAddMessage: (message: Omit<ContactMessage, "id" | "date" | "isRead">) => void;
+  setScreen: (screen: ScreenType) => void;
 }
 
-export default function ContactView({ onAddMessage }: ContactViewProps) {
+export default function ContactView({ onAddMessage, setScreen }: ContactViewProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [interest, setInterest] = useState("");
@@ -255,6 +256,25 @@ export default function ContactView({ onAddMessage }: ContactViewProps) {
           </a>
         </div>
       </div>
+
+      {/* Centered Footer Section */}
+      <footer className="mt-16 pt-8 border-t border-gray-150 text-center">
+        <div className="flex justify-center gap-3 text-gray-400 font-sans tracking-wide" style={{ fontSize: "11px" }}>
+          <button
+            onClick={() => setScreen("privacy")}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            Privacy Policy
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => setScreen("terms")}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            Terms &amp; Conditions
+          </button>
+        </div>
+      </footer>
     </motion.div>
   );
 }
