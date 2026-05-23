@@ -1,0 +1,6 @@
+{
+  "name": "Susan's Company",
+  "description": "An elegant Nairobi boutique for curated modesty fashion and intellectual literature, including a staff admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
