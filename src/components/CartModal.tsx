@@ -178,7 +178,7 @@ export default function CartModal({ isOpen, onClose, cart, setCart, onPlaceOrder
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
-                          <p className="font-sans font-semibold text-sm text-primary truncate">{item.product.title}</p>
+                          <p className="font-sans font-semibold text-sm text-primary truncate">{item.product.name}</p>
                           <p className="text-[10px] uppercase tracking-wider font-semibold text-[#717971] font-mono mt-0.5">{item.product.category}</p>
                         </div>
                         <div className="flex justify-between items-center text-xs">

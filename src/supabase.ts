@@ -35,7 +35,7 @@ export async function syncProductToSupabase(product: Product): Promise<{ success
       .from("products")
       .upsert({
         id: product.id,
-        title: product.title,
+        name: product.name,
         description: product.description,
         price: product.price,
         category: product.category,
@@ -116,7 +116,7 @@ export async function queryProductsFromSupabase(): Promise<Product[]> {
   if (!data || data.length === 0) return [];
   return data.map((p: any) => ({
     id: p.id,
-    title: p.title,
+    name: p.name,
     description: p.description,
     price: Number(p.price),
     category: p.category as "clothes" | "books",

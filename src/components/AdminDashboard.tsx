@@ -359,7 +359,7 @@ export default function AdminDashboard({
 
     const newProduct: Product = {
       id: "p-" + Date.now(),
-      title: newProductTitle,
+      name: newProductTitle,
       description: newProductDescription || "Exquisite addition to Susan's Company Nairobi curated collections.",
       price: priceNum,
       category: newProductCategory,
@@ -422,7 +422,7 @@ export default function AdminDashboard({
       // Create readable text content of catalog
       let text = "=== SUSANS APP CATALOG PRODUCTS BACKUP ===\n\n";
       products.forEach((p, idx) => {
-        text += `${idx + 1}. [${p.category.toUpperCase()}] ${p.title} - KSh ${p.price}\n`;
+        text += `${idx + 1}. [${p.category.toUpperCase()}] ${p.name} - KSh ${p.price}\n`;
         text += `   Desc: ${p.description}\n`;
         text += `   Image: ${p.image}\n\n`;
       });
@@ -955,7 +955,7 @@ export default function AdminDashboard({
                               <img src={p.image} className="w-full h-full object-cover" alt="" />
                             </div>
                             <div>
-                              <p className="font-semibold text-primary">{p.title}</p>
+                              <p className="font-semibold text-primary">{p.name}</p>
                               <p className="text-xs text-on-surface-variant/75 line-clamp-1 mt-0.5 max-w-sm">{p.description}</p>
                             </div>
                           </td>
@@ -1153,7 +1153,7 @@ export default function AdminDashboard({
                                   <img src={item.product.image} className="w-full h-full object-cover" alt="" />
                                 </div>
                                 <div className="flex-grow min-w-0">
-                                  <p className="font-semibold text-primary text-xs truncate">{item.product.title}</p>
+                                  <p className="font-semibold text-primary text-xs truncate">{item.product.name}</p>
                                   <p className="text-[11px] text-on-surface-variant/75 mt-0.5">Quantity: {item.quantity}</p>
                                 </div>
                                 <div className="text-xs font-semibold text-primary">

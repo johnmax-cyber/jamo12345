@@ -1,10 +1,10 @@
 export interface Product {
   id: string;
-  title: string;
+  name: string;
   description: string;
   price: number; // in KSh
   category: "clothes" | "books";
-  image: string;
+  image?: string;
   isNew?: boolean;
   onSale?: boolean;
   originalPrice?: number;

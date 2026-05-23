@@ -33,7 +33,7 @@ export default function ShopView({ products, onAddToCart }: ShopViewProps) {
   // Filter products based on active tab and search query
   const filteredProducts = products.filter((product) => {
     const matchesSearch = 
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase());
       
     if (!matchesSearch) return false;
@@ -190,11 +190,17 @@ export default function ShopView({ products, onAddToCart }: ShopViewProps) {
               >
                 {/* Image Section with interactive hover zoom and badges */}
                 <div className="h-80 overflow-hidden relative bg-surface-container flex items-center justify-center p-0">
-                  <img
-                    alt={product.title}
-                    src={product.image}
-                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
-                  />
+                  {product.image ? (
+                    <img
+                      alt={product.name}
+                      src={product.image}
+                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a4a2e] to-[#2d6a4f] text-white p-6 text-center select-none">
+                      <span className="font-serif font-bold text-lg tracking-wide drop-shadow-sm">{product.name}</span>
+                    </div>
+                  )}
                   
                   {/* Status badges */}
                   {product.isNew && (
@@ -221,7 +227,7 @@ export default function ShopView({ products, onAddToCart }: ShopViewProps) {
                   </div>
                   
                   <h3 className="font-serif text-xl font-bold text-primary mb-2 tracking-tight group-hover:text-secondary transition-colors">
-                    {product.title}
+                    {product.name}
                   </h3>
                   
                   <p className="font-sans text-xs sm:text-sm text-on-surface-variant flex-grow mb-6 leading-relaxed">

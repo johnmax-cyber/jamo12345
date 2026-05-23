@@ -118,12 +118,18 @@ export default function HomeView({ setScreen, products, onAddToCart }: HomeViewP
                 className="bg-white rounded-lg overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.03)] lift-hover flex flex-col group"
               >
                 {/* Image Frame */}
-                <div className="aspect-[4/5] relative overflow-hidden bg-surface-container">
-                  <img 
-                    alt={product.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    src={product.image}
-                  />
+                <div className="aspect-[4/5] relative overflow-hidden bg-surface-container flex items-center justify-center">
+                  {product.image ? (
+                    <img 
+                      alt={product.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      src={product.image}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a4a2e] to-[#2d6a4f] text-white p-6 text-center select-none">
+                      <span className="font-serif font-bold text-base md:text-lg tracking-wide drop-shadow-sm">{product.name}</span>
+                    </div>
+                  )}
                   {product.isNew && (
                     <span className="absolute top-4 right-4 bg-white/95 text-primary text-xs font-semibold px-3 py-1 rounded-full shadow-sm tracking-wide">
                       New
@@ -134,7 +140,7 @@ export default function HomeView({ setScreen, products, onAddToCart }: HomeViewP
                 {/* Info and Price Row */}
                 <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
                   <div>
-                    <h3 className="font-serif text-lg md:text-xl text-primary font-semibold tracking-tight">{product.title}</h3>
+                    <h3 className="font-serif text-lg md:text-xl text-primary font-semibold tracking-tight">{product.name}</h3>
                     <p className="text-xs text-on-surface-variant font-medium tracking-wide uppercase mt-1">{product.category}</p>
                     <p className="font-sans text-xs sm:text-sm text-on-surface-variant mt-2 line-clamp-2">{product.description}</p>
                   </div>

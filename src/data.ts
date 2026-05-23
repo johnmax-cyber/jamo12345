@@ -3,7 +3,7 @@ import { Product, ContactMessage, Order } from "./types";
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: "p1",
-    title: "Emerald Abaya",
+    name: "Emerald Abaya",
     description: "Flowing silhouette with gold accent stitching and premium modest fit.",
     price: 12500,
     category: "clothes",
@@ -12,7 +12,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: "p2",
-    title: "Modern Wisdom",
+    name: "Modern Wisdom",
     description: "Essays on leadership and traditional African and global philosophy.",
     price: 3200,
     category: "books",
@@ -20,7 +20,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: "p3",
-    title: "Ivory Tunic",
+    name: "Ivory Tunic",
     description: "Lightweight silk blend for professional elegance and hot weather comfort.",
     price: 8400,
     category: "clothes",
@@ -30,7 +30,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: "p4",
-    title: "Silk Blend Hijab",
+    name: "Silk Blend Hijab",
     description: "A beautifully draped, premium silk hijab in a soft olive green tone.",
     price: 3500,
     category: "clothes",
@@ -39,7 +39,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: "p5",
-    title: "Spiritual Reflections",
+    name: "Spiritual Reflections",
     description: "Hardcover Edition of curated meditations and timeless ethical principles.",
     price: 2800,
     category: "books",
@@ -47,7 +47,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: "p6",
-    title: "Classic Onyx Abaya",
+    name: "Classic Onyx Abaya",
     description: "A minimalist, full-length black abaya with subtle premium stitching.",
     price: 6500,
     category: "clothes",
