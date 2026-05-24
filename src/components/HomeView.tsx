@@ -10,7 +10,7 @@ interface HomeViewProps {
 
 export default function HomeView({ setScreen, products, onAddToCart }: HomeViewProps) {
   // Get sample featured products based on the home mockup
-  const featuredProducts = products.filter(p => ["p4", "p5", "p6"].includes(p.id));
+  const featuredProducts = products.slice(0, 3);
 
   return (
     <motion.div
