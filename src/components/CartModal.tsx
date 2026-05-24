@@ -72,17 +72,21 @@ export default function CartModal({ isOpen, onClose, cart, setCart, onPlaceOrder
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-end"
+    >
       {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.6 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black pointer-events-auto"
+        className="absolute inset-0 bg-black cursor-pointer pointer-events-auto"
+        transition={{ duration: 0.3 }}
       />
 
       {/* Cart Drawer */}
@@ -90,7 +94,7 @@ export default function CartModal({ isOpen, onClose, cart, setCart, onPlaceOrder
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
-        transition={{ type: "tween", duration: 0.35 }}
+        transition={{ type: "spring", damping: 30, stiffness: 220, mass: 1 }}
         className="relative bg-white w-full max-w-md h-full shadow-2xl flex flex-col justify-between z-10 text-on-surface"
       >
         {/* Header container */}
@@ -326,6 +330,6 @@ export default function CartModal({ isOpen, onClose, cart, setCart, onPlaceOrder
           </AnimatePresence>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
